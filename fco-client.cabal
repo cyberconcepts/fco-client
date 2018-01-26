@@ -16,10 +16,20 @@ cabal-version:        >=1.10
 library
   hs-source-dirs:     src
   exposed-modules:    Fco.Client
-  build-depends:      base >= 4.7 && < 5
+  build-depends:      base
                     , base-compat
                     , basic-prelude
                     , containers
+                    , data-default
+                    , bytestring
+                    , text
+                    , aeson
+                    , conduit
+                    , conduit-extra
+                    , http-client
+                    , http-client-tls
+                    , http-conduit
+                    , http-types
   default-language:   Haskell2010
 
 executable fco-client
