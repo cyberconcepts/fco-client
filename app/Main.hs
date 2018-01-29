@@ -1,8 +1,7 @@
 module Main where
 
---import Data.String.Strip
---import Doit (run)
-import Fco.Client (run)
+import Fco.Client (run, loadFromFile)
 
 main :: IO ()
-main = run
+-- main = run
+main = loadFromFile

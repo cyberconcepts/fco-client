@@ -23,6 +23,7 @@ library
                     , data-default
                     , bytestring
                     , text
+                    , unordered-containers
                     , aeson
                     , conduit
                     , conduit-extra

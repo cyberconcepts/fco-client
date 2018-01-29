@@ -8,10 +8,13 @@ module Fco.Client where
 
 import BasicPrelude
 
-import Data.Aeson (encode, object, (.=))
+import Data.Aeson (decode, encode, object, (.=), Object, Value (Object))
 import Data.Aeson.Parser (json)
+import qualified Data.ByteString.Lazy as BS
 import Data.Conduit (($$))
-import Data.Conduit.Attoparsec(sinkParser)
+import Data.Conduit.Attoparsec (sinkParser)
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Set as Set
 import Network.HTTP.Client (
         newManager, parseRequest, requestBody, requestHeaders,
         responseBody, responseStatus, withResponse,
@@ -40,4 +43,27 @@ run = do
             "Status Code: " ++ (pack $ show (statusCode $ responseStatus resp))
         value <- bodyReaderSource (responseBody resp) $$ sinkParser json
         print value
-    return ()
+
+
+loadFromFile :: IO ()
+path = "~/development/data/pocket/output-180122.json"
+loadFromFile = do 
+    input <- BS.readFile path
+    let value = decode (input :: BS.ByteString) :: Maybe Object
+    let v2 = case value of
+          --Just v1 -> HM.keys v1
+          Just v1 -> HM.lookup "list" v1
+          Nothing -> Nothing
+    let v4 = case v2 of
+          Just (Object v3) -> extractTags v3
+          Nothing -> Set.fromList ["error"]
+    print v4
+
+
+extractTags :: HM.HashMap Text Value -> Set.Set Text
+extractTags list = foldl extractAndAdd Set.empty list
+  where extractAndAdd :: Set.Set Text -> Value -> Set.Set Text
+        extractAndAdd set (Object v) = case HM.lookup "tags" v of
+          Just (Object x) -> Set.union (Set.fromList (HM.keys x)) set
+          Nothing -> Set.fromList ["error"]
+  
