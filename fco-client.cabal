@@ -26,6 +26,7 @@ library
                     , unordered-containers
                     , aeson
                     , conduit
+                    , conduit-combinators
                     , conduit-extra
                     , http-client
                     , http-client-tls
