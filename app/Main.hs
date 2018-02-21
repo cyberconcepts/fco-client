@@ -1,7 +1,6 @@
 module Main where
 
-import Fco.Client (run, loadFromFile)
+import Fco.Client (run)
 
 main :: IO ()
--- main = run
-main = loadFromFile
+main = run

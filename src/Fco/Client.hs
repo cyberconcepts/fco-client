@@ -8,13 +8,14 @@ module Fco.Client where
 
 import BasicPrelude
 
-import Data.Aeson (encode, object, (.=), Object, Value (Object))
+import Data.Aeson (encode, object, (.=), Object, Value (Object, String))
 import Data.Aeson.Parser (json)
 import Data.Conduit (($$))
 import Data.Conduit.Attoparsec (sinkParser)
 import Data.Conduit.Combinators (sourceHandle)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Set as Set
+import qualified Data.Yaml as Yaml
 import Network.HTTP.Client (
         newManager, parseRequest, requestBody, requestHeaders,
         responseBody, responseStatus, withResponse,
@@ -27,12 +28,21 @@ import Data.Text (pack)
 
 
 run :: IO ()
-run = do
+run = queryPocket >>= print
+--run = loadFromFile >>= print
+
+queryPocket :: IO (Set.Set Text)
+queryPocket = do
     manager <- newManager tlsManagerSettings
     baseReq <- parseRequest "POST https://getpocket.com/v3/get"
+    conf <- loadConfig
+    let String ck = HM.lookupDefault "" "consumer_key" conf
+    let String at = HM.lookupDefault "" "access_token" conf
     let reqData = object [
-          "consumer_key" .= ("12345-abcd1234abcd1234abcd1234"::String),
-          "access_token" .= ("5678defg-5678-defg-5678-defg56"::String),
+          --"consumer_key" .= ("12345-abcd1234abcd1234abcd1234"::String),
+          --"access_token" .= ("5678defg-5678-defg-5678-defg56"::String),
+          "consumer_key" .= ck,
+          "access_token" .= at,
           "detailType" .= ("complete"::String)]
     let req = baseReq {
           requestBody = RequestBodyLBS $ encode reqData,
@@ -42,19 +52,28 @@ run = do
     withResponse req manager $ \resp -> do
         putStrLn $
             "Status Code: " ++ (pack $ show (statusCode $ responseStatus resp))
-        value <- bodyReaderSource (responseBody resp) $$ sinkParser json
-        processValue value
+        (bodyReaderSource (responseBody resp) $$ sinkParser json) >>= processValue
 
 
-loadFromFile :: IO ()
-path = "test/data/pocketdata.json"
-loadFromFile =
-    withFile path ReadMode $ \handle -> do
-      value <- sourceHandle handle $$ sinkParser json
-      processValue value
+loadConfig :: IO (HM.HashMap Text Value)
+loadConfig = do
+    let path = "../../data/pocket/access.yaml"
+    conf <- Yaml.decodeFile path :: IO (Maybe Object)
+    let value = case conf of
+          Just v -> v
+          Nothing -> HM.empty
+    return value
 
 
-processValue :: Value -> IO ()
+loadFromFile :: FilePath -> IO (Set.Set Text)
+loadFromFile path = do
+    conf <- loadConfig
+    --let path = "test/data/pocketdata.json"
+    withFile path ReadMode $ \handle ->
+      (sourceHandle handle $$ sinkParser json) >>= processValue
+
+
+processValue :: Value -> IO (Set.Set Text)
 processValue value = do
     --print value
     let v2 = case value of
@@ -63,7 +82,7 @@ processValue value = do
     let v4 = case v2 of
           Just (Object v3) -> extractTags v3
           Nothing -> Set.fromList ["error"]
-    print v4
+    return v4
 
 
 extractTags :: HM.HashMap Text Value -> Set.Set Text
@@ -72,4 +91,3 @@ extractTags list = foldr extractAndAdd Set.empty list
         extractAndAdd (Object v) set = case HM.lookup "tags" v of
           Just (Object x) -> Set.union (Set.fromList (HM.keys x)) set
           Nothing -> Set.fromList ["error"]
-  
