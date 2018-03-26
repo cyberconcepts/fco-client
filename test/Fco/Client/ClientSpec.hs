@@ -3,7 +3,8 @@ module Fco.Client.ClientSpec (main, spec) where
 import Test.Hspec
 --import Test.QuickCheck
 
-import Data.Set (size)
+--import Data.Set (size)
+import Data.HashMap.Strict (size)
 import Fco.Client
 
 
@@ -19,6 +20,8 @@ spec = do
     it "is just for demonstration" $ do
       "foo bar" `shouldBe` "foo bar"
   describe "load Pocket data" $ do
-    it "number of tags found is 104" $ do
+    --it "number of tags found is 104" $ do
+    it "number of items found is 40" $ do
       d <- loadFromFile "test/data/pocketdata.json"
-      size d `shouldBe` 104
+      items <- processValue d
+      size items `shouldBe` 40

@@ -29,11 +29,15 @@ import Fco.Core.Config (loadConfig)
 import Fco.Core.Struct (lookupString)
 
 
-run :: IO ()
-run = queryPocket >>= print
---run = loadFromFile >>= print
+data LinkData = LinkData Text (Set.Set Text)
+                  deriving (Eq, Ord, Show)
 
-queryPocket :: IO (Set.Set Text)
+
+run :: IO ()
+run = queryPocket >>= processValue >>= print
+--run = loadFromFile >>= processValue >>= print
+
+queryPocket :: IO Value
 queryPocket = do
     manager <- newManager tlsManagerSettings
     baseReq <- parseRequest "POST https://getpocket.com/v3/get"
@@ -52,27 +56,44 @@ queryPocket = do
     withResponse req manager $ \resp -> do
         putStrLn $
             "Status Code: " ++ (pack $ show (statusCode $ responseStatus resp))
-        (bodyReaderSource (responseBody resp) $$ sinkParser json) >>= processValue
+        bodyReaderSource (responseBody resp) $$ sinkParser json
 
 
-loadFromFile :: FilePath -> IO (Set.Set Text)
+loadFromFile :: FilePath -> IO Value
 loadFromFile path = do
     conf <- loadConfig
     --let path = "test/data/pocketdata.json"
     withFile path ReadMode $ \handle ->
-      (sourceHandle handle $$ sinkParser json) >>= processValue
+      sourceHandle handle $$ sinkParser json
 
 
-processValue :: Value -> IO (Set.Set Text)
+--processValue :: Value -> IO (Set.Set Text)
+processValue :: Value -> IO (HM.HashMap Text LinkData)
 processValue value = do
     --print value
     let v2 = case value of
           Object v1 -> HM.lookup "list" v1
           _ -> Nothing
     let v4 = case v2 of
-          Just (Object v3) -> extractTags v3
-          Nothing -> Set.fromList ["error"]
+          --Just (Object v3) -> extractTags v3
+          --Nothing -> Set.fromList ["error"]
+          Just (Object v3) -> extractData v3
+          Nothing -> HM.empty
     return v4
+
+
+extractData :: HM.HashMap Text Value -> HM.HashMap Text LinkData
+extractData list = foldr extractAndAdd HM.empty list
+  where extractAndAdd :: Value -> HM.HashMap Text LinkData
+                               -> HM.HashMap Text LinkData
+        extractAndAdd (Object v) hashMap = 
+                HM.insert (getUrl v) (makeValue v) hashMap
+        getUrl v = lookupString "given_url" v
+        makeValue v = LinkData (lookupString "given_title" v) (getTags v)
+        getTags v = case HM.lookup "tags" v of
+            Just (Object x) -> Set.fromList (HM.keys x)
+            Nothing -> Set.fromList ["error"]
+
 
 
 extractTags :: HM.HashMap Text Value -> Set.Set Text
