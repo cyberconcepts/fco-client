@@ -33,6 +33,7 @@ library
                     , http-conduit
                     , http-types
                     , yaml
+                    , fco-core
   default-language:   Haskell2010
 
 executable fco-client

@@ -15,7 +15,6 @@ import Data.Conduit.Attoparsec (sinkParser)
 import Data.Conduit.Combinators (sourceHandle)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Set as Set
-import qualified Data.Yaml as Yaml
 import Network.HTTP.Client (
         newManager, parseRequest, requestBody, requestHeaders,
         responseBody, responseStatus, withResponse,
@@ -25,6 +24,9 @@ import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Types.Status (statusCode)
 import System.IO (withFile, IOMode (ReadMode))
 import Data.Text (pack)
+
+import Fco.Core.Config (loadConfig)
+import Fco.Core.Struct (lookupString)
 
 
 run :: IO ()
@@ -36,13 +38,11 @@ queryPocket = do
     manager <- newManager tlsManagerSettings
     baseReq <- parseRequest "POST https://getpocket.com/v3/get"
     conf <- loadConfig
-    let String ck = HM.lookupDefault "" "consumer_key" conf
-    let String at = HM.lookupDefault "" "access_token" conf
     let reqData = object [
           --"consumer_key" .= ("12345-abcd1234abcd1234abcd1234"::String),
           --"access_token" .= ("5678defg-5678-defg-5678-defg56"::String),
-          "consumer_key" .= ck,
-          "access_token" .= at,
+          "consumer_key" .= lookupString "consumer_key" conf,
+          "access_token" .= lookupString "access_token" conf,
           "detailType" .= ("complete"::String)]
     let req = baseReq {
           requestBody = RequestBodyLBS $ encode reqData,
@@ -53,16 +53,6 @@ queryPocket = do
         putStrLn $
             "Status Code: " ++ (pack $ show (statusCode $ responseStatus resp))
         (bodyReaderSource (responseBody resp) $$ sinkParser json) >>= processValue
-
-
-loadConfig :: IO (HM.HashMap Text Value)
-loadConfig = do
-    let path = "../../data/pocket/access.yaml"
-    conf <- Yaml.decodeFile path :: IO (Maybe Object)
-    let value = case conf of
-          Just v -> v
-          Nothing -> HM.empty
-    return value
 
 
 loadFromFile :: FilePath -> IO (Set.Set Text)
