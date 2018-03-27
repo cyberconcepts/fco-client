@@ -37,6 +37,7 @@ run :: IO ()
 run = queryPocket >>= processValue >>= print
 --run = loadFromFile >>= processValue >>= print
 
+
 queryPocket :: IO Value
 queryPocket = do
     manager <- newManager tlsManagerSettings
@@ -62,12 +63,10 @@ queryPocket = do
 loadFromFile :: FilePath -> IO Value
 loadFromFile path = do
     conf <- loadConfig
-    --let path = "test/data/pocketdata.json"
     withFile path ReadMode $ \handle ->
       sourceHandle handle $$ sinkParser json
 
 
---processValue :: Value -> IO (Set.Set Text)
 processValue :: Value -> IO (HM.HashMap Text LinkData)
 processValue value = do
     --print value
@@ -95,10 +94,7 @@ extractData list = foldr extractAndAdd HM.empty list
             Nothing -> Set.fromList ["error"]
 
 
+collectTags :: HM.HashMap Text LinkData -> Set.Set Text
+collectTags links = foldr getTags Set.empty links
+  where getTags (LinkData _ tags) set = Set.union tags set
 
-extractTags :: HM.HashMap Text Value -> Set.Set Text
-extractTags list = foldr extractAndAdd Set.empty list
-  where extractAndAdd :: Value -> Set.Set Text -> Set.Set Text
-        extractAndAdd (Object v) set = case HM.lookup "tags" v of
-          Just (Object x) -> Set.union (Set.fromList (HM.keys x)) set
-          Nothing -> Set.fromList ["error"]
