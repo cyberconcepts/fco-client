@@ -70,15 +70,18 @@ loadFromFile path = do
 processValue :: Value -> IO (HM.HashMap Text LinkData)
 processValue value = do
     --print value
-    let v2 = case value of
+    let links = extractData $ extractLinkList value
+    let tags = collectTags links
+    return links
+
+
+extractLinkList :: Value -> HM.HashMap Text Value
+extractLinkList value = case lookupList value of
+          Just (Object list) -> list
+          Nothing -> HM.empty
+  where lookupList v = case v of
           Object v1 -> HM.lookup "list" v1
           _ -> Nothing
-    let v4 = case v2 of
-          --Just (Object v3) -> extractTags v3
-          --Nothing -> Set.fromList ["error"]
-          Just (Object v3) -> extractData v3
-          Nothing -> HM.empty
-    return v4
 
 
 extractData :: HM.HashMap Text Value -> HM.HashMap Text LinkData
