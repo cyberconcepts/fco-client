@@ -21,7 +21,7 @@ spec = do
       "foo bar" `shouldBe` "foo bar"
   describe "load Pocket data" $ do
     it "items found: 40, tags: 104" $ do
-      d <- loadFromFile "test/data/pocketdata.json"
-      items <- processValue d
+      value <- loadFromFile "test/data/pocketdata.json"
+      let items = extractData $ extractLinkList value
       HM.size items `shouldBe` 40
       Set.size (collectTags items) `shouldBe` 104
