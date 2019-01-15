@@ -15,7 +15,7 @@ cabal-version:        >=1.10
 
 library
   hs-source-dirs:     src
-  exposed-modules:    Fco.Client
+  exposed-modules:    Fco.Client.Pocket
   build-depends:      base
                     , base-compat
                     , basic-prelude
@@ -26,7 +26,7 @@ library
                     , conduit-combinators
                     , conduit-extra
                     , cryptonite
-                    , data-default
+                    --, data-default
                     , data-hash
                     , ghc
                     , http-client

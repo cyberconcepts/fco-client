@@ -5,7 +5,7 @@ import Test.Hspec
 
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HM
-import Fco.Client
+import Fco.Client.Pocket
 
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is

@@ -1,6 +1,6 @@
 module Main where
 
-import Fco.Client (run)
+import Fco.Client.Pocket (run)
 
 main :: IO ()
 main = run
