@@ -11,10 +11,7 @@ import BasicPrelude
 
 import Data.Aeson (encode, object, (.=), Object, Value (Object, String))
 import Data.Aeson.Parser (json)
---import Crypto.Hash (MD5(..), SHA1(..), hashWith)
---import Data.ByteArray.Encoding (convertToBase, Base (Base64, Base64URLUnpadded))
---import qualified Data.ByteString as B
-import Data.Conduit (($$))
+import Data.Conduit ((.|), runConduit)
 import Data.Conduit.Attoparsec (sinkParser)
 import Data.Conduit.Combinators (sourceHandle)
 import qualified Data.Hash as H
@@ -30,8 +27,8 @@ import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Types.Status (statusCode)
 import System.IO (withFile, IOMode (ReadMode))
 
-import Fco.Core.Config (loadPocketConfig)
-import Fco.Core.Struct (lookupString)
+import Control.Concurrent.Actor.Config (loadConfig)
+import Fco.Core.Struct (lookup, lookupString)
 
 
 data LinkData = LinkData Text (Set.Set Text)
@@ -39,20 +36,21 @@ data LinkData = LinkData Text (Set.Set Text)
 
 
 run :: IO ()
-run = queryPocket >>= processValue >>= print
+run = queryPocket "../../data/config-fco.yaml"  >>= processValue >>= print
 --run = loadFromFile >>= processValue >>= print
 
 
-queryPocket :: IO Value
-queryPocket = do
+queryPocket :: FilePath -> IO Value
+queryPocket path = do
     manager <- newManager tlsManagerSettings
     baseReq <- parseRequest "POST https://getpocket.com/v3/get"
-    conf <- loadPocketConfig
-    let reqData = object [
-          "consumer_key" .= lookupString "consumer_key" conf,
-          "access_token" .= lookupString "access_token" conf,
+    conf <- loadConfig path
+    let (Just pconf) = HM.lookup "client-pocket" conf
+        reqData = object [
+          "consumer_key" .= HM.lookup "consumer-key" pconf,
+          "access_token" .= HM.lookup "access-token" pconf,
           "detailType" .= ("complete"::String)]
-    let req = baseReq {
+        req = baseReq {
           requestBody = RequestBodyLBS $ encode reqData,
           requestHeaders = [
                 ("Content-Type", "application/json; charset=utf-8"), 
@@ -60,14 +58,13 @@ queryPocket = do
     withResponse req manager $ \resp -> do
         putStrLn $
             "Status Code: " ++ (T.pack $ show (statusCode $ responseStatus resp))
-        bodyReaderSource (responseBody resp) $$ sinkParser json
+        runConduit (bodyReaderSource (responseBody resp) .| sinkParser json)
 
 
 loadFromFile :: FilePath -> IO Value
 loadFromFile path = do
-    conf <- loadPocketConfig
     withFile path ReadMode $ \handle ->
-      sourceHandle handle $$ sinkParser json
+      runConduit (sourceHandle handle .| sinkParser json)
 
 
 processValue :: Value -> IO (HM.HashMap Text LinkData)
@@ -104,5 +101,6 @@ extractData list = foldr extractAndAdd HM.empty list
         makeValue v = LinkData (lookupString "given_title" v) (getTags v)
         getTags v = case HM.lookup "tags" v of
             Just (Object x) -> Set.fromList (HM.keys x)
+            Nothing -> Set.fromList []
             _ -> error "'tags' item not found or malformed."
 
